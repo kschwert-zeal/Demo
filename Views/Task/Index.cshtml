@@ -1,0 +1,307 @@
+﻿@model Demo.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "Employee Task Dashboard";
+}
+
+<style>
+        .dashboard-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .task-grid {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .priority-high { border-left: 4px solid #dc3545; }
+        .priority-critical { border-left: 4px solid #6f42c1; }
+        .priority-medium { border-left: 4px solid #ffc107; }
+        .priority-low { border-left: 4px solid #28a745; }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .status-notstarted { background-color: #6c757d; color: white; }
+        .status-inprogress { background-color: #17a2b8; color: white; }
+        .status-onhold { background-color: #ffc107; color: black; }
+        .status-completed { background-color: #28a745; color: white; }
+        .status-cancelled { background-color: #dc3545; color: white; }
+    </style>
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="dashboard-card">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1><i class="fas fa-tasks me-2"></i>Task Dashboard</h1>
+                    <p class="mb-0">Monitor and manage employee task assignments</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <select class="form-select" id="employeeSelect" onchange="filterByEmployee()">
+                                <option value="">All Employees</option>
+                                @foreach(var employee in Model.Employees)
+                                {
+                                    <option value="@employee" class= "@(employee == Model.SelectedEmployee ? "selected" : "")">@employee</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                                <i class="fas fa-plus"></i> Add Task
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="text-primary">@Model.Statistics.TotalTasks</h3>
+                            <p class="text-muted mb-0">Total Tasks</p>
+                        </div>
+                        <i class="fas fa-list-alt fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="text-success">@Model.Statistics.CompletedTasks</h3>
+                            <p class="text-muted mb-0">Completed</p>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="text-info">@Model.Statistics.InProgressTasks</h3>
+                            <p class="text-muted mb-0">In Progress</p>
+                        </div>
+                        <i class="fas fa-clock fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="text-danger">@Model.Statistics.OverdueTasks</h3>
+                            <p class="text-muted mb-0">Overdue</p>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="chart-container">
+                    <h5><i class="fas fa-chart-pie me-2"></i>Task Status Distribution</h5>
+                    <canvas id="statusChart" width="300" height="300"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="chart-container">
+                    <h5><i class="fas fa-chart-bar me-2"></i>Priority Breakdown</h5>
+                    <canvas id="priorityChart" width="300" height="300"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="chart-container">
+                    <h5><i class="fas fa-chart-line me-2"></i>Monthly Progress</h5>
+                    <canvas id="monthlyChart" width="300" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Grid -->
+        <div class="task-grid">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-table me-2"></i>Task Details</h5>
+                <div class="input-group" style="width: 300px;">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search tasks..." onkeyup="searchTasks()">
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-hover" id="taskTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Title</th>
+                            <th>Assigned To</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Due Date</th>
+                            <th>Progress</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach(var task in Model.Tasks)
+                        {
+                            <tr class="priority-@task.Priority.ToString().ToLower()">
+                                <td>
+                                    <strong>@task.Title</strong>
+                                    @if(!string.IsNullOrEmpty(task.Description))
+                                    {
+                                        <br><small class="text-muted">@task.Description</small>
+                                    }
+                                </td>
+                                <td>@task.AssignedTo</td>
+                                <td>
+                                    <span class="status-badge status-@task.Status.ToString().ToLower()">
+                                        @* @task.Status.ToString().Replace("NotStarted", "Not Started").Replace("InProgress", "In Progress").Replace("OnHold", "On Hold") *@
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-@(task.Priority == Demo.Models.TaskPriority.Critical ? "danger" : 
+                                                            task.Priority == Demo.Models.TaskPriority.High ? "warning" : 
+                                                            task.Priority == Demo.Models.TaskPriority.Medium ? "info" : "success")">
+                                        @task.Priority
+                                    </span>
+                                </td>
+                                <td>
+                                    @if(task.DueDate.HasValue)
+                                    {
+                                    var isOverdue = task.DueDate < DateTime.Now && task.Status != Demo.Models.TasksStatus.Completed;
+                                        <span class="@(isOverdue ? "text-danger fw-bold" : "")">
+                                            @task.DueDate.Value.ToString("MMM dd, yyyy")
+                                        </span>
+                                        if(isOverdue)
+                                        {
+                                            <i class="fas fa-exclamation-circle text-danger ms-1"></i>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No due date</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if(task.EstimatedHours > 0)
+                                    {
+                                        var progress = task.Status == Demo.Models.TasksStatus.Completed ? 100 :
+                                    task.Status == Demo.Models.TasksStatus.InProgress ? 50 : 0;
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-@(progress == 100 ? "success" : progress > 0 ? "info" : "secondary")" 
+                                                 role="progressbar" style="width: @progress%" aria-valuenow="@progress" aria-valuemin="0" aria-valuemax="100">
+                                                @progress%
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">@task.ActualHours/@task.EstimatedHours hours</small>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="updateStatus(@task.Id, '@((int)Demo.Models.TasksStatus.InProgress)')">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                    <button class="btn btn-sm btn-outline-success" onclick="updateStatus(@task.Id, '@((int)Demo.Models.TasksStatus.Completed)')">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTask(@task.Id)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal fade" id="addTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post" action="/Home/CreateTask">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Title</label>
+                            <input type="text" class="form-control" name="Title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="Description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Assigned To</label>
+                            <select class="form-select" name="AssignedTo" required>
+                                @foreach(var employee in Model.Employees)
+                                {
+                                    <option value="@employee">@employee</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Priority</label>
+                                <select class="form-select" name="Priority">
+                                    <option value="0">Low</option>
+                                    <option value="1" selected>Medium</option>
+                                    <option value="2">High</option>
+                                    <option value="3">Critical</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Estimated Hours</label>
+                                <input type="number" class="form-control" name="EstimatedHours" min="1">
+                            </div>
+                        </div>
+                        <div class="mb-3 mt-3">
+                            <label class="form-label">Due Date</label>
+                            <input type="date" class="form-control" name="DueDate">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Task</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
